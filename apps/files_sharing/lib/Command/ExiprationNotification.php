@@ -70,16 +70,18 @@ class ExiprationNotification extends Command {
 		$maxTime = clone $minTime;
 		$maxTime->setTime(23, 59, 59);
 
-		$shares = $this->shareManager->getFiltered(function(IShare $share) use ($minTime, $maxTime) {
-			$expiration = $share->getExpirationDate();
-
-			return $expiration !== null
-				&& $expiration->getTimestamp() >= $minTime->getTimestamp()
-				&& $expiration->getTimestamp() <= $maxTime->getTimestamp();
-		});
+		$shares = $this->shareManager->getAllShares();
 
 		$now = $this->time->getDateTime();
+
+		/** @var IShare $share */
 		foreach ($shares as $share) {
+			if ($share->getExpirationDate() === null
+				|| $share->getExpirationDate()->getTimestamp() < $minTime->getTimestamp()
+				|| $share->getExpirationDate()->getTimestamp() > $maxTime->getTimestamp()) {
+				continue;
+			}
+
 			$notification = $this->notificationManager->createNotification();
 			$notification->setApp('files_sharing')
 				->setDateTime($now)
