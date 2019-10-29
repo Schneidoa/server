@@ -24,7 +24,6 @@ declare(strict_types=1);
 
 namespace OCA\Files_Sharing\Notification;
 
-use OCP\IURLGenerator;
 use OCP\L10N\IFactory;
 use OCP\Notification\AlreadyProcessedException;
 use OCP\Notification\INotification;
@@ -37,17 +36,12 @@ class Notifier implements INotifier {
 	/** @var IFactory */
 	protected $l10nFactory;
 
-	/** @var IURLGenerator */
-	protected $urlGenerator;
-
 	/** @var IManager */
 	private $shareManager;
 
 	public function __construct(IFactory $l10nFactory,
-								IURLGenerator $urlGenerator,
 								IManager $shareManager) {
 		$this->l10nFactory = $l10nFactory;
-		$this->urlGenerator = $urlGenerator;
 		$this->shareManager = $shareManager;
 	}
 
