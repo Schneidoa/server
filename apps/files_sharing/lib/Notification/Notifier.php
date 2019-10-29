@@ -24,6 +24,7 @@ declare(strict_types=1);
 
 namespace OCA\Files_Sharing\Notification;
 
+use OCP\Files\IRootFolder;
 use OCP\L10N\IFactory;
 use OCP\Notification\AlreadyProcessedException;
 use OCP\Notification\INotification;
@@ -39,10 +40,15 @@ class Notifier implements INotifier {
 	/** @var IManager */
 	private $shareManager;
 
+	/** @var IRootFolder */
+	private $rootFolder;
+
 	public function __construct(IFactory $l10nFactory,
-								IManager $shareManager) {
+								IManager $shareManager,
+								IRootFolder $rootFolder) {
 		$this->l10nFactory = $l10nFactory;
 		$this->shareManager = $shareManager;
+		$this->rootFolder = $rootFolder;
 	}
 
 	public function getID(): string {
@@ -69,6 +75,9 @@ class Notifier implements INotifier {
 		}
 
 		$node = $share->getNode();
+		$userFolder = $this->rootFolder->getUserFolder($notification->getUser());
+		$path = $userFolder->getRelativePath($node->getPath());
+
 		$notification
 			->setParsedSubject($l->t('Share will expire tomorrow'))
 			->setParsedMessage($l->t('One or more of your shares will expire tomorrow'))
@@ -79,7 +88,7 @@ class Notifier implements INotifier {
 						'type' => 'file',
 						'id' => $node->getId(),
 						'name' => $node->getName(),
-						'path' => $node->getPath(),
+						'path' => $path,
 					],
 				]
 			);
