@@ -1101,7 +1101,7 @@ class FederatedShareProvider implements IShareProvider {
 		return ['remote' => $remote];
 	}
 
-	public function getFiltered(\Closure $closure): array {
+	public function getAllShares(): iterable {
 		$qb = $this->dbConnection->getQueryBuilder();
 
 		$qb->select('*')
@@ -1113,17 +1113,18 @@ class FederatedShareProvider implements IShareProvider {
 				)
 			);
 
-		$result = [];
 		$cursor = $qb->execute();
-
 		while($data = $cursor->fetch()) {
-			$share = $this->createShareObject($data);
-
-			if ($closure($share)) {
-				$result[] = $share;
+			try {
+				$share = $this->createShareObject($data);
+			} catch (InvalidShare $e) {
+				continue;
+			} catch (ShareNotFound $e) {
+				continue;
 			}
-		}
 
-		return $result;
+			yield $share;
+		}
+		$cursor->closeCursor();
 	}
 }

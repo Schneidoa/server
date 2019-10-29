@@ -1166,7 +1166,7 @@ class ShareByMailProvider implements IShareProvider {
 		return ['public' => $mail];
 	}
 
-	public function getFiltered(\Closure $closure): array {
+	public function getAllShares(): iterable {
 		$qb = $this->dbConnection->getQueryBuilder();
 
 		$qb->select('*')
@@ -1177,17 +1177,18 @@ class ShareByMailProvider implements IShareProvider {
 				)
 			);
 
-		$result = [];
 		$cursor = $qb->execute();
-
 		while($data = $cursor->fetch()) {
-			$share = $this->createShareObject($data);
-
-			if ($closure($share)) {
-				$result[] = $share;
+			try {
+				$share = $this->createShareObject($data);
+			} catch (InvalidShare $e) {
+				continue;
+			} catch (ShareNotFound $e) {
+				continue;
 			}
-		}
 
-		return $result;
+			yield $share;
+		}
+		$cursor->closeCursor();
 	}
 }

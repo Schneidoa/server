@@ -1383,7 +1383,7 @@ class DefaultShareProvider implements IShareProvider {
 
 	}
 
-	public function getFiltered(\Closure $closure): array {
+	public function getAllShares(): iterable{
 		$qb = $this->dbConn->getQueryBuilder();
 
 		$qb->select('*')
@@ -1396,17 +1396,16 @@ class DefaultShareProvider implements IShareProvider {
 				)
 			);
 
-		$result = [];
 		$cursor = $qb->execute();
-
 		while($data = $cursor->fetch()) {
-			$share = $this->createShare($data);
-
-			if ($closure($share)) {
-				$result[] = $share;
+			try {
+				$share = $this->createShare($data);
+			} catch (InvalidShare $e) {
+				continue;
 			}
-		}
 
-		return $result;
+			yield $share;
+		}
+		$cursor->closeCursor();
 	}
 }

@@ -1671,14 +1671,11 @@ class Manager implements IManager {
 		return true;
 	}
 
-	public function getFiltered(\Closure $closure): array {
+	public function getAllShares(): iterable {
 		$providers = $this->factory->getAllProviders();
 
-		$shares = [];
 		foreach ($providers as $provider) {
-			$shares = array_merge($shares, $provider->getFiltered($closure));
+			yield from $provider->getAllShares();
 		}
-
-		return $shares;
 	}
 }
