@@ -22,31 +22,46 @@ declare(strict_types=1);
  *
  */
 
-namespace OCA\Files_Sharing\BackgroundJob;
+namespace OCA\Files_Sharing\Command;
 
 use OCP\AppFramework\Utility\ITimeFactory;
-use OCP\BackgroundJob\DailyJob;
 use OCP\IDBConnection;
-use \OCP\Notification\IManager as NotificationManager;
+use OCP\Notification\IManager as NotificationManager;
+use OCP\Share\IManager as ShareManager;
+use OCP\Share\IShare;
+use Symfony\Component\Console\Command\Command;
+use Symfony\Component\Console\Input\InputInterface;
+use Symfony\Component\Console\Output\OutputInterface;
 
-class ExiprationNotificationJob extends DailyJob {
+class ExiprationNotification extends Command {
 	/** @var NotificationManager */
 	private $notificationManager;
 	/** @var IDBConnection */
 	private $connection;
+	/** @var ITimeFactory */
+	private $time;
+	/** @var ShareManager */
+	private $shareManager;
 
 	public function __construct(ITimeFactory $time,
 								NotificationManager $notificationManager,
-								IDBConnection $connection) {
-		parent::__construct($time);
+								IDBConnection $connection,
+								ShareManager $shareManager) {
+		parent::__construct();
 
-		// Run twice a day
-		$this->setInterval(12*60*60);
 		$this->notificationManager = $notificationManager;
 		$this->connection = $connection;
+		$this->time = $time;
+		$this->shareManager = $shareManager;
 	}
 
-	protected function run($argument) {
+	protected function configure() {
+		$this
+			->setName('sharing:expiration-notification')
+			->setDescription('Notify share initiators when a share will expire the next day.');
+	}
+
+	public function execute(InputInterface $input, OutputInterface $output) {
 		//Current time
 		$minTime = $this->time->getDateTime();
 		$minTime->add(new \DateInterval('P1D'));
@@ -55,37 +70,26 @@ class ExiprationNotificationJob extends DailyJob {
 		$maxTime = clone $minTime;
 		$maxTime->setTime(23, 59, 59);
 
-		/*
-		 * Expire file link shares only (for now)
-		 */
-		$qb = $this->connection->getQueryBuilder();
-		$qb->select('id', 'file_source', 'uid_owner', 'uid_initiator', 'item_type')
-			->from('share')
-			->where(
-				$qb->expr()->andX(
-					$qb->expr()->gte('expiration', $qb->expr()->literal($minTime->getTimestamp())),
-					$qb->expr()->lte('expiration', $qb->expr()->literal($maxTime->getTimestamp())),
-					$qb->expr()->orX(
-						$qb->expr()->eq('item_type', $qb->expr()->literal('file')),
-						$qb->expr()->eq('item_type', $qb->expr()->literal('folder'))
-					)
-				)
-			);
+		$shares = $this->shareManager->getFiltered(function(IShare $share) use ($minTime, $maxTime) {
+			$expiration = $share->getExpirationDate();
 
-		$shares = $qb->execute();
+			return $expiration !== null
+				&& $expiration->getTimestamp() >= $minTime->getTimestamp()
+				&& $expiration->getTimestamp() <= $maxTime->getTimestamp();
+		});
+
 		$now = $this->time->getDateTime();
-		while($share = $shares->fetch()) {
+		foreach ($shares as $share) {
 			$notification = $this->notificationManager->createNotification();
 			$notification->setApp('files_sharing')
 				->setDateTime($now)
-				->setObject('share', (string)$share['id'])
+				->setObject('share', $share->getFullId())
 				->setSubject('expiresTomorrow');
 
 			// Only send to initiator for now
-			$notification->setUser($share['uid_initiator']);
+			$notification->setUser($share->getSharedBy());
 			$this->notificationManager->notify($notification);
 		}
-		$shares->closeCursor();
 	}
 
 
