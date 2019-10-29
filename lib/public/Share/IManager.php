@@ -385,4 +385,16 @@ interface IManager {
 	 */
 	public function shareProviderExists($shareType);
 
+	/**
+	 * Get all the shares filtered with the closure
+	 * The closure requires to follow
+	 *
+	 * function(IShare $share): bool
+	 *
+	 * This will filter out all shares that don't pass the function
+	 *
+	 * @return IShare[]
+	 */
+	public function getFiltered(\Closure $closure): array;
+
 }

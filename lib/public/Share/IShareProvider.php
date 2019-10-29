@@ -217,4 +217,16 @@ interface IShareProvider {
 	 * @since 12
 	 */
 	public function getAccessList($nodes, $currentAccess);
+
+	/**
+	 * Get all the shares in this provider filtered with the closure
+	 * The closure requires to follow
+	 *
+	 * function(IShare $share): bool
+	 *
+	 * This will filter out all shares that don't pass the function
+	 *
+	 * @return IShare[]
+	 */
+	public function getFiltered(\Closure $closure): array;
 }

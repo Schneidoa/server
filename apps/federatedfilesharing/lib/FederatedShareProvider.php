@@ -1100,4 +1100,30 @@ class FederatedShareProvider implements IShareProvider {
 
 		return ['remote' => $remote];
 	}
+
+	public function getFiltered(\Closure $closure): array {
+		$qb = $this->dbConnection->getQueryBuilder();
+
+		$qb->select('*')
+			->from('share')
+			->where(
+				$qb->expr()->orX(
+					$qb->expr()->eq('share_type', $qb->createNamedParameter(\OCP\Share\IShare::TYPE_REMOTE)),
+					$qb->expr()->eq('share_type', $qb->createNamedParameter(\OCP\Share\IShare::TYPE_REMOTE_GROUP))
+				)
+			);
+
+		$result = [];
+		$cursor = $qb->execute();
+
+		while($data = $cursor->fetch()) {
+			$share = $this->createShareObject($data);
+
+			if ($closure($share)) {
+				$result[] = $share;
+			}
+		}
+
+		return $result;
+	}
 }
